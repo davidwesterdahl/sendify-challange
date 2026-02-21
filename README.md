@@ -1,4 +1,5 @@
-
+# Sendify challange
+## David Westerdahl
 
 
 The public DB Schenker tracking UI performs bot detection by checking navigator.webdriver.

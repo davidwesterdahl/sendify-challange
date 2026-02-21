@@ -1,9 +1,12 @@
 from playwright.sync_api import sync_playwright
-import logging, time, json
+import time
+import json
+import logging
 
 URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
 REF_ID = "1806256390"
-
+logging.basicConfig(level=logging.INFO, force=True)
+log = logging.getLogger(__name__)
 
 class SchenkerClient:
     def __init__(self):
@@ -34,7 +37,9 @@ class SchenkerClient:
                 route.continue_()
 
         clock_end = time.time()
-        print("Browser setup: %.02f seconds" % (clock_end-clock_start))
+        log.info("Browser setup: %.02f seconds" % (clock_end-clock_start))
+
+        self.context.route("**/*", block_resources)
 
 
     def fetch_json(self, url:str, ref_id:str, time_out:int = 20_000) -> dict:
@@ -48,6 +53,7 @@ class SchenkerClient:
         :return: Returns the JSON in a python dictionary object response from the DBschenker API.
         """
         clock_start = time.time()
+        log.info(f"Fetching JSON for {ref_id}. Time_out of {time_out/1000} seconds")
         
 
         page = self.context.new_page()
@@ -57,6 +63,7 @@ class SchenkerClient:
 
         data = {}
 
+        # Function to fetch only the necessary data
         def response_test(r):
             if r.status == 200:
                 if "tracking-public/shipments?query" in r.url:
@@ -66,6 +73,7 @@ class SchenkerClient:
                 if "tracking-public/shipments/land" in r.url:
                     #print("The second one:", r.url)
                     data["second"] = r.json()
+
         page.on("response", response_test)
 
         page.add_init_script("""
@@ -81,7 +89,7 @@ class SchenkerClient:
         page.close()
 
         clock_end = time.time()
-        print("Json_fetch: %.02f seconds" % (clock_end-clock_start))
+        log.info("Json_fetch: %.02f seconds" % (clock_end-clock_start))
 
         return data
 
@@ -104,8 +112,23 @@ class SchenkerClient:
         
         return data
 
+
+##### TEST FOR DEBUG #####
 if __name__ == "__main__":
     client = SchenkerClient()
     jsonnn = client.fetch_json(URL, REF_ID)
     parsed = client.parse_json(jsonnn)
-    print(json.dumps(parsed, sort_keys=True, indent=4))
+    #print(json.dumps(parsed, sort_keys=True, indent=4))
+    id_list = ["1806203236",
+                "1806290829",
+                "1806273700",
+                "1806272330",
+                "1806271886",
+                "1806270433",
+                "1806268072",
+                "1806267579",
+                "1806264568",
+                "1806258974",
+                "1806256390"]
+    for id in id_list:
+        client.fetch_json(URL, id)

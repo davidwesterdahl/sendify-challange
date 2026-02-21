@@ -3,7 +3,7 @@ from schenkers_api import SchenkerClient
 from configparser import ConfigParser
 from tkinter import ttk
 import tkinter as tk
-import threading
+
 
 config = ConfigParser()
 if not config.read("settings.cfg"):
