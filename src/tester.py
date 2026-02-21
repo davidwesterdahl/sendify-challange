@@ -42,7 +42,7 @@ class App:
     def button_press(self):
         self.answer.configure(text="Loading...")
         entry = self.entry.get()
-        response = (json.dumps(client.parse_json(client.fetch_json(URL, id)), sort_keys=True, indent=4))
+        response = (json.dumps(client.parse_json(client.fetch_json(URL, entry)), sort_keys=True, indent=4))
         self.answer.configure(text=response)
 
 

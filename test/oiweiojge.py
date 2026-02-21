@@ -3,7 +3,7 @@ import time
 
 def api_mock(text):
     time.sleep(1)
-    print(text)
+    print(text, "\a")
 
 def thread_test(text):
     for i in range(6):
