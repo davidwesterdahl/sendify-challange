@@ -62,16 +62,17 @@ class SchenkerClient:
             #page.on("request", lambda request: print(">>", request.method, request.url))
             #page.on("response", lambda response: print("<<", response.status, response.url))
 
-            self.data = {} # holding the json for the shipment, if it is found
-            self.message = {} # holding error message if shipment id is not found
+            data = {} # holding the json for the shipment, if it is found
+            message = {} # holding error message if shipment id is not found
 
             # Function to fetch only the necessary data
             def gather_json(r):
+                nonlocal data, message
                 if r.status == 400: # set message if id not found
                     if "tracking-public/shipments?query" in r.url:
                         #print("The first one:", r.url)
                         try:
-                            self.message = r.json()
+                            message = r.json()
                         except Exception:
                             log.warning(f"400 message for {ref_id} not found") 
 
@@ -79,7 +80,7 @@ class SchenkerClient:
                     if "tracking-public/shipments/land" in r.url:
                         #print("The second one:", r.url)
                         try:
-                            self.data = r.json()
+                            data = r.json()
                         except Exception:
                             log.warning(f"Could not retrieve json for: {ref_id}")
 
@@ -105,16 +106,14 @@ class SchenkerClient:
                     page.keyboard.press("Enter")
 
                 # if the id is wrong, the page will not load, and we get a json response
-                if self.message:
-                    return {"error": self.message["message"]}
+                if message:
+                    return {"error": message["message"]}
                 
                #page.wait_for_selector("es-tracking-public", timeout=time_out)
                 page.wait_for_selector("es-event-list", timeout=time_out)
 
-                if page.query_selector("es-shipment-not-found"):
-                    log.warning(f"shipment {ref_id} not found")
-                    return {"error": f"shipment {ref_id} not found by DBschenker webbsite"}
-                return self.data
+                return data
+            
             except Exception as e:
                 log.warning(f"Attempt {attempt+1} of {retries}:Failed to fetch Json: Shipment id {ref_id}. \n{e}")
                 if attempt == retries-1:
@@ -143,12 +142,15 @@ class SchenkerClient:
             log.warning("parse_json did not receive a dictionary object")
             return source
         else:
-            data["receiver"] = source["location"]["consignee"]
-            data["sender"] = source["location"]["shipper"]
-            data["packageDetails"] = source["goods"]
-            data["events"] = source["events"]
-            for event in data["events"]:
-                del event["shellIconName"]
+            try:
+                data["receiver"] = source["location"]["consignee"]
+                data["sender"] = source["location"]["shipper"]
+                data["packageDetails"] = source["goods"]
+                data["events"] = source["events"]
+                for event in data["events"]:
+                    del event["shellIconName"]
+            except KeyError as e:
+                return {"error": f"DBSchenker has changed their JSON response. Missing key: {e}"}
  
         return data
     
@@ -189,7 +191,7 @@ if __name__ == "__main__":
                         "1806256390"]
             for id in id_list:
                 raw = client.fetch_json(URL, id, 1_000)
-                if raw is None:
+                if "error" in raw:
                     print(client.parse_json(raw))
 
         case "3":
