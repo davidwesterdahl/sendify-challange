@@ -9,15 +9,18 @@ URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
 mcp = FastMCP("Schenker Tracking Server")
 client = None
 
+logging.basicConfig(level=logging.INFO, force=True)
+log = logging.getLogger(__name__)
+
 
 # Functions for handling shutdown of the MCP server
 def shutdown() -> None:
     global client
     if client is not None:
-        logging.info("Closing browser...")
+        log.info("Closing browser...")
         client.close()
     else:
-        logging.info("Client already closed")
+        log.info("Client already closed")
 atexit.register(shutdown)
 
 
@@ -38,7 +41,7 @@ async def track_shipment(tracking_number: str) -> dict:
 
 
 if __name__ == "__main__":
-    logging.info("starting client. Press CTRL+C to exit the server.")
+    log.info("starting client.")
     mcp.run(transport="stdio")
 
 

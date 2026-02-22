@@ -10,6 +10,7 @@ log = logging.getLogger(__name__)
 class SchenkerClient:
     def __init__(self):
         clock_start = time.time()
+        log.info("Starting SchenkerClient")
         self.p = sync_playwright().start()
         self.browser = self.p.chromium.launch(
                     headless=True,
@@ -27,8 +28,7 @@ class SchenkerClient:
             timezone_id="Europe/Stockholm"
         )
 
-
-        BLOCK_TYPES = {"image", "font", "media"}
+        BLOCK_TYPES = {"image", "font", "media", "stylesheet", "other", "eventsource", "websocket"}
         def block_resources(route):
             if route.request.resource_type in BLOCK_TYPES:
                 route.abort()
@@ -41,10 +41,10 @@ class SchenkerClient:
         self.context.route("**/*", block_resources)
 
 
-    def fetch_json(self, url:str, ref_id:str, time_out:int = 20_000, retries:int = 3) -> dict:
+    def fetch_json(self, url:str, ref_id:str, time_out:int = 10_000, retries:int = 3) -> dict:
         """
         Opens a new page in the headless browser, enters the parcel ID and returns the JSON containing the information.
-        It has a timeout of 20 seconds by default. If an error occurs, this function will return a dictionary in the form of
+        It has a timeout of 10 seconds by default. If an error occurs, this function will return a dictionary in the form of
         {"error": "*the error*"}. This function handles exceptions for when the ID is not found and time outs.
 
         :param str url: The URL for the DBSchenker public webbsite
@@ -54,37 +54,10 @@ class SchenkerClient:
         """
         clock_start = time.time()
         log.info(f"Fetching JSON for {ref_id}. Time_out of {time_out/1000} seconds")
-        
+
+        # Attempt to fetch the JSON for each retry
         for attempt in range(retries):
             page = self.context.new_page()
-
-            # test for seeing which requests and responses are sent
-            #page.on("request", lambda request: print(">>", request.method, request.url))
-            #page.on("response", lambda response: print("<<", response.status, response.url))
-
-            data = {} # holding the json for the shipment, if it is found
-            message = {} # holding error message if shipment id is not found
-
-            # Function to fetch only the necessary data
-            def gather_json(r):
-                nonlocal data, message
-                if r.status == 400: # set message if id not found
-                    if "tracking-public/shipments?query" in r.url:
-                        #print("The first one:", r.url)
-                        try:
-                            message = r.json()
-                        except Exception:
-                            log.warning(f"400 message for {ref_id} not found") 
-
-                if r.status == 200: # set json if id found
-                    if "tracking-public/shipments/land" in r.url:
-                        #print("The second one:", r.url)
-                        try:
-                            data = r.json()
-                        except Exception:
-                            log.warning(f"Could not retrieve json for: {ref_id}")
-
-            page.on("response", gather_json)
 
             page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {
@@ -92,27 +65,31 @@ class SchenkerClient:
             });
             """)
 
-        
             try:
                 page.goto(url, wait_until="domcontentloaded")
+
 
                 # enter id and wait for the second response, either a 200 or 400
                 # as the first 429 is a captcha puzzle
                 with page.expect_response(
-                    lambda r: "tracking-public/shipments?query" in r.url
-                    and r.status != 429
-                    ):
+                    lambda r: 
+                    ("tracking-public/shipments?query" in r.url and r.status == 400) or 
+                    ("tracking-public/shipments/land" in r.url and r.status == 200)
+                    , timeout=time_out) as response_info:
+
                     page.fill("input#mat-input-0", ref_id)
                     page.keyboard.press("Enter")
 
-                # if the id is wrong, the page will not load, and we get a json response
-                if message:
-                    return {"error": message["message"]}
-                
-               #page.wait_for_selector("es-tracking-public", timeout=time_out)
-                page.wait_for_selector("es-event-list", timeout=time_out)
+                # Get the JSON response from either the 200 or 400 response
+                response = response_info.value
 
-                return data
+                # If response is 400, id is not found, return error message
+                if response.status == 400:
+                    return {"error": response.json().get("message", "Shipment not found")}
+                
+                #page.wait_for_selector("es-event-list", timeout=time_out)
+
+                return response.json()
             
             except Exception as e:
                 log.warning(f"Attempt {attempt+1} of {retries}:Failed to fetch Json: Shipment id {ref_id}. \n{e}")
@@ -125,7 +102,7 @@ class SchenkerClient:
                 clock_end = time.time()
                 log.info("Json_fetch: %.02f seconds" % (clock_end-clock_start))
 
-        return {"error" : f"No retries attempted for {ref_id}"}
+        return {"error" : f"Number of retries can not be 0: id {ref_id}"}
 
             
 
@@ -136,23 +113,22 @@ class SchenkerClient:
         
         If this functions receives a None value, it retuns a dictionary with an error message"""
 
-        data = {}
-
         if "error" in source: # If the json returns a dict with error, return the error
-            log.warning("parse_json did not receive a dictionary object")
+            log.warning("parse_json recieved an error as parameter")
             return source
         else:
             try:
+                data = {}
                 data["receiver"] = source["location"]["consignee"]
                 data["sender"] = source["location"]["shipper"]
                 data["packageDetails"] = source["goods"]
                 data["events"] = source["events"]
                 for event in data["events"]:
                     del event["shellIconName"]
+                return data
+            
             except KeyError as e:
-                return {"error": f"DBSchenker has changed their JSON response. Missing key: {e}"}
- 
-        return data
+                return {"error": f"DBSchenker has probably changed their JSON response, code needs changing. Missing key: {e}"}
     
     def close(self):
         self.browser.close()
@@ -162,43 +138,51 @@ class SchenkerClient:
 ##### TEST FOR DEBUG #####
 if __name__ == "__main__":
 
-    print("This is the debug. Choose what to test.")
+    print("""
+######################################
+This is the debug. Choose what to test.""")
     print("[1] Test with the id 1806256390, and print the json")
-    print("[2] Test to run all 11 id's with a timout of 1 second to test timout exception handling")
-    print("[3] type own id")
+    print("[2] Test to run all 11 id's with a timout of 1.5 second to test timout exception handling")
+    print("[3] type own id. Use it to try invalid id.")
     choice : str = input(": ")
 
     client = SchenkerClient() # start the client
-    match choice:
-        case "1":
-            REF_ID = "1806256390"
-            jsonnn = client.fetch_json(URL, REF_ID)
-            parsed = client.parse_json(jsonnn)
-            print(json.dumps(parsed, sort_keys=True, indent=4))
 
-        case "2":
-            # Test all the id's and stress test the time_out of the functions.
-            id_list = ["1806203236",
-                        "1806290829",
-                        "1806273700",
-                        "1806272330",
-                        "1806271886",
-                        "1806270433",
-                        "1806268072",
-                        "1806267579",
-                        "1806264568",
-                        "1806258974",
-                        "1806256390"]
-            for id in id_list:
-                raw = client.fetch_json(URL, id, 1_000)
-                if "error" in raw:
-                    print(client.parse_json(raw))
+    try:
+        match choice:
+            case "1":
+                REF_ID = "1806256390"
+                jsonnn = client.fetch_json(URL, REF_ID)
+                parsed = client.parse_json(jsonnn)
+                print(json.dumps(parsed, sort_keys=True, indent=4))
 
-        case "3":
-            ref_id = input("Type the id: ")
-            jsonnn = client.fetch_json(URL, ref_id)
-            parsed = client.parse_json(jsonnn)
-            print(json.dumps(parsed, sort_keys=True, indent=4))
+            case "2":
+                # Test all the id's and stress test the time_out of the functions.
+                id_list = ["1806203236",
+                            "1806290829",
+                            "1806273700",
+                            "1806272330",
+                            "1806271886",
+                            "1806270433",
+                            "1806268072",
+                            "1806267579",
+                            "1806264568",
+                            "1806258974",
+                            "1806256390"]
+                for id in id_list:
+                    raw = client.fetch_json(URL, id, 1_500)
+                    if "error" in raw:
+                        print(client.parse_json(raw))
 
-        
+            case "3":
+                ref_id = input("Type the id: ")
+                jsonnn = client.fetch_json(URL, ref_id)
+                parsed = client.parse_json(jsonnn)
+                print(json.dumps(parsed, sort_keys=True, indent=4))
+
+            case default:
+                print("No valid input, shutting down...")
+    finally:
+        client.close() 
+            
 
