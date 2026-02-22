@@ -4,7 +4,6 @@ import json
 import logging
 
 URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
-REF_ID = "1806256390"
 logging.basicConfig(level=logging.INFO, force=True)
 log = logging.getLogger(__name__)
 
@@ -42,10 +41,10 @@ class SchenkerClient:
         self.context.route("**/*", block_resources)
 
 
-    def fetch_json(self, url:str, ref_id:str, time_out:int = 20_000) -> dict:
+    def fetch_json(self, url:str, ref_id:str, time_out:int = 20_000, retries:int = 3) -> dict | None:
         """
         Opens a new page in the headless browser, enters the parcel ID and returns the JSON containing the information.
-        It has a timeout of 20 seconds by default
+        It has a timeout of 20 seconds by default. Returns None if the JSON can not be fetched.
 
         :param str url: The URL for the DBSchenker public webbsite
         :param str ref_id: The 10 digit parcel ID
@@ -55,70 +54,95 @@ class SchenkerClient:
         clock_start = time.time()
         log.info(f"Fetching JSON for {ref_id}. Time_out of {time_out/1000} seconds")
         
+        for attempt in range(retries):
+            page = self.context.new_page()
 
-        page = self.context.new_page()
+            #page.on("request", lambda request: print(">>", request.method, request.url))
+            #page.on("response", lambda response: print("<<", response.status, response.url))
 
-        #page.on("request", lambda request: print(">>", request.method, request.url))
-        #page.on("response", lambda response: print("<<", response.status, response.url))
+            self.data = {}
 
-        data = {}
+            # Function to fetch only the necessary data
+            def gather_json(r):
+                if r.status == 200:
+                    # if "tracking-public/shipments?query" in r.url:
+                    #     #print("The first one:", r.url)
+                    #     data["first"] = r.json()
 
-        # Function to fetch only the necessary data
-        def response_test(r):
-            if r.status == 200:
-                if "tracking-public/shipments?query" in r.url:
-                    #print("The first one:", r.url)
-                    data["first"] = r.json()
+                    if "tracking-public/shipments/land" in r.url:
+                        #print("The second one:", r.url)
+                        try:
+                            self.data = r.json()
+                        except Exception:
+                            log.warning(f"Could not retrieve json for: {ref_id}")
 
-                if "tracking-public/shipments/land" in r.url:
-                    #print("The second one:", r.url)
-                    data["second"] = r.json()
+            page.on("response", gather_json)
 
-        page.on("response", response_test)
+            page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            });
+            """)
 
-        page.add_init_script("""
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => undefined
-        });
-        """)
+        
+            try:
+                page.goto(url, wait_until="domcontentloaded")
+                page.fill("input#mat-input-0", ref_id)
+                page.keyboard.press("Enter")
+                page.wait_for_selector("es-event-list", timeout=time_out)
+                return self.data
+            except Exception as e:
+                log.warning(f"Attempt {attempt+1} of {retries}:Failed to fetch Json: Shipment id {ref_id}. \n{e}")
+                if attempt == retries-1:
+                    log.warning(f"All atempts for shipment id {ref_id} failed, returning None value from fetch_json.")
+                #     raise
+            finally:
+                page.close()
+                clock_end = time.time()
+                log.info("Json_fetch: %.02f seconds" % (clock_end-clock_start))
 
-        page.goto(url, wait_until="domcontentloaded")
-        page.fill("input#mat-input-0", ref_id)
-        page.keyboard.press("Enter")
-        page.wait_for_selector("es-event-list", timeout=time_out)
-        page.close()
+            
 
-        clock_end = time.time()
-        log.info("Json_fetch: %.02f seconds" % (clock_end-clock_start))
-
-        return data
-
-    def parse_json(self, source:dict) -> dict:
+    def parse_json(self, source: dict | None) -> dict:
         """Takes the JSON dictionary object from the fetch_json() function 
         and sorts it, returning a dictionary object with the relevant parcel info. 
-        If the form of the JSON from DBSchenker changes, this function needs changing."""
-        clock_start = time.time()
+        If the form of the JSON from DBSchenker changes, this function needs changing.
+        
+        If this functions receives a None value, it retuns a dictionary with an error message"""
+
         data = {}
 
-        data["receiver"] = source["second"]["location"]["consignee"]
-        data["sender"] = source["second"]["location"]["shipper"]
-        data["packageDetails"] = source["second"]["goods"]
-        data["events"] = source["second"]["events"]
-        for event in data["events"]:
-            del event["shellIconName"]
+        if source is not None:
+            data["receiver"] = source["location"]["consignee"]
+            data["sender"] = source["location"]["shipper"]
+            data["packageDetails"] = source["goods"]
+            data["events"] = source["events"]
+            for event in data["events"]:
+                del event["shellIconName"]
+        else:
+            data = {
+                "Error": "parse_json did not receive a dictionary object. Most likely due to time_out when fetching shipment data from Schenker webbsite"
+            }
+            log.warning("parse_json did not receive a dictionary object")
         
-        clock_end = time.time()
-        print("Json_parse: %.02f seconds" % (clock_end-clock_start))
         
         return data
+    
+    def close(self):
+        self.browser.close()
+        self.p.stop()
 
 
 ##### TEST FOR DEBUG #####
 if __name__ == "__main__":
+    REF_ID = "1806256390"
     client = SchenkerClient()
     jsonnn = client.fetch_json(URL, REF_ID)
     parsed = client.parse_json(jsonnn)
     #print(json.dumps(parsed, sort_keys=True, indent=4))
+
+
+    # Test all the id's and stress test the time_out of the functions.
     id_list = ["1806203236",
                 "1806290829",
                 "1806273700",
@@ -131,4 +155,6 @@ if __name__ == "__main__":
                 "1806258974",
                 "1806256390"]
     for id in id_list:
-        client.fetch_json(URL, id)
+        raw = client.fetch_json(URL, id, 1_000)
+        if raw is None:
+            print(client.parse_json(raw))
