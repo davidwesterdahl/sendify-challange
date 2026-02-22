@@ -25,4 +25,4 @@ This project uses the uv package manager for python. Instructions on how to inst
 
 Next download this project and open the sendify-challange-master folder. If you are on mac open the run.command, or on windows the run.bat. A new console window will open and run `uv sync` as well as run the schenker_api.py for debugging purposes. This will prompt you with different choices on what to test, to see that it functions properly.
 
-Next we want to configure the MCP.
+Next we want to con
