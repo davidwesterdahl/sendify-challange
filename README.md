@@ -19,8 +19,10 @@ This project consists of two python files, one for fetching data from schenker, 
 
 ## Installation
 
+You need to have python installed, download it [here](https://www.python.org/downloads/)
+
 This project uses the uv package manager for python. Instructions on how to install it is [here](https://docs.astral.sh/uv/getting-started/installation/). If you have homebrew simply type ```brew install uv``` in the terminal. 
 
-Next download this project and open the sendify-challange-master folder in a terminal. Then type `uv run src/schenker_api.py` to let uv sync all packages needed and then run the schenker_api.py file which will test the shipment tracker. This will prompt you with different choices on what to test, to see that it functions properly.
+Next download this project and open the sendify-challange-master folder. If you are on mac open the run.command, or on windows the run.bat. A new console window will open and run `uv sync` as well as run the schenker_api.py for debugging purposes. This will prompt you with different choices on what to test, to see that it functions properly.
 
 Next we want to configure the MCP.
