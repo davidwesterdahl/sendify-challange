@@ -41,7 +41,7 @@ class SchenkerClient:
         self.context.route("**/*", block_resources)
 
 
-    def fetch_json(self, url:str, ref_id:str, time_out:int = 20_000, retries:int = 3) -> dict | None:
+    def fetch_json(self, url:str, ref_id:str, time_out:int = 20_000, retries:int = 3) -> dict:
         """
         Opens a new page in the headless browser, enters the parcel ID and returns the JSON containing the information.
         It has a timeout of 20 seconds by default. Returns None if the JSON can not be fetched.
@@ -94,16 +94,19 @@ class SchenkerClient:
             except Exception as e:
                 log.warning(f"Attempt {attempt+1} of {retries}:Failed to fetch Json: Shipment id {ref_id}. \n{e}")
                 if attempt == retries-1:
-                    log.warning(f"All atempts for shipment id {ref_id} failed, returning None value from fetch_json.")
+                    log.warning(f"All atempts for shipment id {ref_id} failed, returning error dict from fetch_json.")
+                    return {"error": e}
                 #     raise
             finally:
                 page.close()
                 clock_end = time.time()
                 log.info("Json_fetch: %.02f seconds" % (clock_end-clock_start))
 
+        return {"error" : f"No retries attempted for {ref_id}"}
+
             
 
-    def parse_json(self, source: dict | None) -> dict:
+    def parse_json(self, source: dict) -> dict:
         """Takes the JSON dictionary object from the fetch_json() function 
         and sorts it, returning a dictionary object with the relevant parcel info. 
         If the form of the JSON from DBSchenker changes, this function needs changing.
@@ -112,20 +115,17 @@ class SchenkerClient:
 
         data = {}
 
-        if source is not None:
+        if "error" in source: # If the json returns a dict with error, return the error
+            log.warning("parse_json did not receive a dictionary object")
+            return source
+        else:
             data["receiver"] = source["location"]["consignee"]
             data["sender"] = source["location"]["shipper"]
             data["packageDetails"] = source["goods"]
             data["events"] = source["events"]
             for event in data["events"]:
                 del event["shellIconName"]
-        else:
-            data = {
-                "Error": "parse_json did not receive a dictionary object. Most likely due to time_out when fetching shipment data from Schenker webbsite"
-            }
-            log.warning("parse_json did not receive a dictionary object")
-        
-        
+ 
         return data
     
     def close(self):
