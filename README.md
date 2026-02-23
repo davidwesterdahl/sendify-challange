@@ -25,4 +25,27 @@ This project uses the uv package manager for python. Instructions on how to inst
 
 Next download this project and open the sendify-challange-master folder. If you are on mac open the run.command, or on windows the run.bat. A new console window will open and run `uv sync` as well as run the schenker_api.py for debugging purposes. This will prompt you with different choices on what to test, to see that it functions properly.
 
-Next we want to con
+(If for some reason the run files does not work, simply open the sendify-challange-master folder in terminal and run ~uv sync~ and then ~uv run src/schenkers_api.py~ )
+
+Next we want to connect the MCP server to your AI desktop agent. Full instructions are on how to setup a local MCP server are [here](https://modelcontextprotocol.io/docs/develop/connect-local-servers). 
+
+Go to **Settings → Developer** in Claude and add a new MCP server:
+
+```json
+{
+  "mcpServers": {
+    "schenker": {
+      "command": "uv",
+      "args": ["run", "/ABSOLUTE/PATH/TO/sendify-challange-master/src/mcp_server.py"]
+    }
+  }
+}
+```
+
+Replace the path with your actual path to `mcp_server.py`, for example:
+- **Mac/Linux:** `/Users/yourname/code_projects/sendify-challange-master/src/mcp_server.py`
+- **Windows:** `C:\\Users\\yourname\\code_projects\\sendify-challange-master\\src\\mcp_server.py`
+
+Make sure that the foldername ~sendify-challange-master~ is correct.
+
+Restart Claude and the `track_shipment` tool will be available.
