@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from src.schenker_client import SchenkerClient
+from schenker_client import SchenkerClient
 import logging
 import asyncio
 import atexit
