@@ -48,7 +48,7 @@ class SchenkerClient:
 
         :param str url: The URL for the DBSchenker public website
         :param str ref_id: The 10 digit parcel ID
-        :param int time_out: Number of miliseconds to wait for the webbsite to load the page with shipment information
+        :param int time_out: Number of miliseconds to wait for the website to load the page with shipment information
         :return: Returns the JSON in a python dictionary object response from the DBschenker API.
         """
         clock_start = time.time()
@@ -86,6 +86,7 @@ class SchenkerClient:
 
                 return response.json()
             
+            # return error message in case of timeout after all retries
             except Exception as e:
                 log.warning(f"Attempt {attempt+1} of {retries}:Failed to fetch Json: Shipment id {ref_id}. \n{e}")
                 if attempt == retries-1:
@@ -96,6 +97,7 @@ class SchenkerClient:
                 clock_end = time.time()
                 log.info("Json_fetch: %.02f seconds" % (clock_end-clock_start))
 
+        # if for some reason the function is called with 0 retries...
         return {"error" : f"Number of retries can not be 0: id {ref_id}"}
 
             
@@ -105,10 +107,12 @@ class SchenkerClient:
         and sorts it, returning a dictionary object with the relevant parcel info. 
         If the form of the JSON from DBSchenker changes, this function needs changing.
         
-        If this functions receives an error message, it simply passes it on"""
+        If this functions receives an error message, it simply passes it on
+        
+        :param dict source: Either the JSON response, or an error message"""
 
         if "error" in source: # If the json returns a dict with error, return the error
-            log.warning("parse_json recieved an error as argument")
+            log.warning("parse_json received an error as argument")
             return source
         else:
             try:
@@ -140,7 +144,7 @@ if __name__ == "__main__":
 ######################################
 This is a short debug program for fetching shipment tracking data from DBSchenker. Select what to test.""")
     print("[1] Test with the id 1806256390, and print the json")
-    print("[2] Test to run all 11 id's with a timout of 1.5 second to test timout exception handling")
+    print("[2] Test to run all 11 id's with a timout of 1.5 second to test timeout exception handling")
     print("[3] type own id. Use it to try invalid id.")
     choice : str = input(": ")
 

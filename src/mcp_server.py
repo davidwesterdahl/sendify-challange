@@ -14,6 +14,12 @@ log = logging.getLogger(__name__)
 async def track_shipment(tracking_number: str) -> dict:
     """
     Fetch tracking information for a DB Schenker shipment.
+    Returns sender, receiver, package details and tracking history.
+    Returns an error message if tracking number is invalid, not found or 
+    in case of request time out.
+    
+    This client has a time out of 10 seconds for each request made to the
+    DBSchenker tracking website, and retries 3 times if timed out.
     """
     def fetch():
         asyncio.set_event_loop(asyncio.new_event_loop()) 

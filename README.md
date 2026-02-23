@@ -25,16 +25,7 @@ This project uses the uv package manager for python. Instructions on how to inst
 
 Next, download this project and open the sendify-challange-master folder. If you are on mac open the `run.command`, or on windows the `run.bat`. A new console window will open and run the necessary commands to set up the enviroment, as well as run the schenker_client.py for debugging purposes. This will prompt you with different choices on what to test, to see that it functions properly.
 
-**Mac security warning**\
-When opening `run.command` for the first time, Mac may show a security warning. 
-Right-click the file in Finder and select **Open**, then confirm in the dialog. 
-After that you can double-click it as normal.
-
-**Windows security warning**\
-When opening `run.bat` for the first time, Windows SmartScreen may show a warning.
-Click **More info** and then **Run anyway** to proceed.
-
-If for some reason the run files does not work, simply open the sendify-challange-master folder in terminal and run the following commands
+Mac and windows might not open the run files for security reasons. If so, then simply open the sendify-challange-master folder in terminal and run the following commands:
 
 ```bsh
 uv sync
@@ -42,9 +33,9 @@ uv run playwright install chromium
 run src/schenker_client.py
 ```
 
-Next we want to connect the MCP server to your AI desktop agent. Full instructions are on how to setup a local MCP server are [here](https://modelcontextprotocol.io/docs/develop/connect-local-servers). 
+Next we want to connect the MCP server to your AI desktop agent. Full instructions on how to setup a MCP server are [here](https://modelcontextprotocol.io/docs/develop/connect-local-servers). 
 
-This MCP server has been tested and works with Claude. To connect the MCP server go to **Settings → Developer** in Claude and add a new MCP server:
+This MCP server has been tested and works with Claude. To connect the MCP server go to **Settings → Developer** in Claude and add a new MCP server in the config file via the **Edit config** button:
 
 ```json
 {
@@ -62,7 +53,7 @@ This MCP server has been tested and works with Claude. To connect the MCP server
 }
 ```
 
-If you have multiple MCP servers in there, make sure the new "schenker" is added in the "mcpServers" key.
+If you have multiple MCP servers in there, make sure the new `"schenker"` is added in the `"mcpServers"` key, after a comma. The name `"schenker"` can be changed to anything you like.
 
 Replace the path with your actual path to `mcp_server.py`, for example:
 - **Mac/Linux:** `/Users/yourname/sendify-challange-master/src/mcp_server.py`
@@ -70,4 +61,4 @@ Replace the path with your actual path to `mcp_server.py`, for example:
 
 Make sure that the foldername `sendify-challange-master` is correct.
 
-Restart Claude and the `track_shipment` tool will be available.
+Restart Claude and the `track_shipment` tool will be available. Ask claude to track a shipment id `1806264568` with the schenker mcp and it should be working.
