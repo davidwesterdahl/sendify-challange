@@ -5,5 +5,8 @@ cd "$(dirname "$0")"
 echo "Syncing dependencies with UV..."
 uv sync
 
+echo "Installing chromium for playwright"
+uv run playwright install chromium
+
 echo "Fetching debug package..."
-uv run src/schenkers_api.py
+uv run src/schenkerc_client.py
