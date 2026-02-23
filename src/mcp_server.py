@@ -41,7 +41,7 @@ async def track_shipment(tracking_number: str) -> dict:
 
 
 if __name__ == "__main__":
-    log.info("starting client.")
+    log.info("starting MCP client for DBSchenker shipment tracking.")
     mcp.run(transport="stdio")
 
 

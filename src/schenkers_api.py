@@ -3,7 +3,9 @@ import time
 import json
 import logging
 
+# The URL to DBSchenkers shipment tracking
 URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
+
 logging.basicConfig(level=logging.INFO, force=True)
 log = logging.getLogger(__name__)
 
@@ -68,9 +70,8 @@ class SchenkerClient:
             try:
                 page.goto(url, wait_until="domcontentloaded")
 
-
                 # enter id and wait for the second response, either a 200 or 400
-                # as the first 429 is a captcha puzzle
+                # as the first 429 response is a captcha puzzle
                 with page.expect_response(
                     lambda r: 
                     ("tracking-public/shipments?query" in r.url and r.status == 400) or 
@@ -86,8 +87,6 @@ class SchenkerClient:
                 # If response is 400, id is not found, return error message
                 if response.status == 400:
                     return {"error": response.json().get("message", "Shipment not found")}
-                
-                #page.wait_for_selector("es-event-list", timeout=time_out)
 
                 return response.json()
             
@@ -96,7 +95,6 @@ class SchenkerClient:
                 if attempt == retries-1:
                     log.warning(f"All atempts for shipment id {ref_id} failed, returning error dict from fetch_json.")
                     return {"error": f"{e}"}
-                #     raise
             finally:
                 page.close()
                 clock_end = time.time()
@@ -111,10 +109,10 @@ class SchenkerClient:
         and sorts it, returning a dictionary object with the relevant parcel info. 
         If the form of the JSON from DBSchenker changes, this function needs changing.
         
-        If this functions receives a None value, it retuns a dictionary with an error message"""
+        If this functions receives an error message, it simply passes it on"""
 
         if "error" in source: # If the json returns a dict with error, return the error
-            log.warning("parse_json recieved an error as parameter")
+            log.warning("parse_json recieved an error as argument")
             return source
         else:
             try:
@@ -128,7 +126,7 @@ class SchenkerClient:
                 return data
             
             except KeyError as e:
-                return {"error": f"DBSchenker has probably changed their JSON response, code needs changing. Missing key: {e}"}
+                return {"error": f"DBSchenker has likely changed their JSON response, code needs changing. Missing key: {e}"}
     
     def close(self):
         self.browser.close()
@@ -140,7 +138,7 @@ if __name__ == "__main__":
 
     print("""
 ######################################
-This is the debug. Choose what to test.""")
+This is a short debug program for fetching shipment tracking data from DBSchenker. Select what to test.""")
     print("[1] Test with the id 1806256390, and print the json")
     print("[2] Test to run all 11 id's with a timout of 1.5 second to test timout exception handling")
     print("[3] type own id. Use it to try invalid id.")
