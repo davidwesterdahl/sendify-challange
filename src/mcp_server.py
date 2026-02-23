@@ -20,6 +20,8 @@ async def track_shipment(tracking_number: str) -> dict:
     
     This client has a time out of 10 seconds for each request made to the
     DBSchenker tracking website, and retries 3 times if timed out.
+
+    :param str tracking_number: The tracking number for the shipment.
     """
     def fetch():
         asyncio.set_event_loop(asyncio.new_event_loop()) 
