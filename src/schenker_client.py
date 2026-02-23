@@ -139,54 +139,60 @@ class SchenkerClient:
 
 ##### TEST FOR DEBUG #####
 if __name__ == "__main__":
-
-    print("""
-######################################
-This is a short debug program for fetching shipment tracking data from DBSchenker. Select what to test.""")
-    print("[1] Test with the id 1806256390, and print the json")
-    print("[2] Test to run all 11 id's with a timout of 1.5 second to test timeout exception handling")
-    print("[3] type own id. Use it to try invalid id.")
-    choice : str = input(": ")
-
+    # The URL to DBSchenkers shipment tracking website
+    URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
     client = SchenkerClient() # start the client
 
-    # The URL to DBSchenkers shipment tracking
-    URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
+    should_close = False
 
-    
-    match choice:
-        case "1":
-            REF_ID = "1806256390"
-            jsonnn = client.fetch_json(URL, REF_ID)
-            parsed = client.parse_json(jsonnn)
-            print(json.dumps(parsed, sort_keys=True, indent=4))
+    while not should_close:
+        print("""
+######################################
+This is a short debug program for fetching shipment tracking data from DBSchenker. Select what to test.""")
+        print("[1] Test with the id 1806256390, and print the json")
+        print("[2] Test to run all 11 id's with a timout of 1.5 second to test timeout exception handling")
+        print("[3] type own id. Use it to try invalid id.")
+        print("[0] Close the debug menu.")
+        choice : str = input(": ")
+        
+        match choice:
+            case "1":
+                REF_ID = "1806256390"
+                jsonnn = client.fetch_json(URL, REF_ID)
+                parsed = client.parse_json(jsonnn)
+                print(json.dumps(parsed, sort_keys=True, indent=4))
 
-        case "2":
-            # Test all the id's and stress test the time_out of the functions.
-            id_list = ["1806203236",
-                        "1806290829",
-                        "1806273700",
-                        "1806272330",
-                        "1806271886",
-                        "1806270433",
-                        "1806268072",
-                        "1806267579",
-                        "1806264568",
-                        "1806258974",
-                        "1806256390"]
-            for id in id_list:
-                raw = client.fetch_json(URL, id, 1_500)
-                if "error" in raw:
-                    print(client.parse_json(raw))
+            case "2":
+                # Test all the id's and stress test the time_out of the functions.
+                id_list = ["1806203236",
+                            "1806290829",
+                            "1806273700",
+                            "1806272330",
+                            "1806271886",
+                            "1806270433",
+                            "1806268072",
+                            "1806267579",
+                            "1806264568",
+                            "1806258974",
+                            "1806256390"]
+                for id in id_list:
+                    raw = client.fetch_json(URL, id, 1_500)
+                    if "error" in raw:
+                        print(client.parse_json(raw))
 
-        case "3":
-            ref_id = input("Type the id: ")
-            jsonnn = client.fetch_json(URL, ref_id)
-            parsed = client.parse_json(jsonnn)
-            print(json.dumps(parsed, sort_keys=True, indent=4))
+            case "3":
+                ref_id = input("Type the id: ")
+                jsonnn = client.fetch_json(URL, ref_id)
+                parsed = client.parse_json(jsonnn)
+                print(json.dumps(parsed, sort_keys=True, indent=4))
+            
+            case "0":
+                should_close = True
+                print("Shutting down...")
 
-        case _:
-            print("No valid input, shutting down...")
+            case _:
+                print(f" {choice} is not a valid input")
+
 
             
 
