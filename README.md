@@ -51,15 +51,22 @@ This MCP server has been tested and works with Claude. To connect the MCP server
   "mcpServers": {
     "schenker": {
       "command": "uv",
-      "args": ["run", "/ABSOLUTE/PATH/TO/sendify-challange-master/src/mcp_server.py"]
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/sendify-challange-master/src",
+        "run",
+        "mcp_server.py"
+      ]
     }
   }
 }
 ```
 
+If you have multiple MCP servers in there, make sure the new "schenker" is added in the "mcpServers" key.
+
 Replace the path with your actual path to `mcp_server.py`, for example:
-- **Mac/Linux:** `/Users/yourname/code_projects/sendify-challange-master/src/mcp_server.py`
-- **Windows:** `C:\\Users\\yourname\\code_projects\\sendify-challange-master\\src\\mcp_server.py`
+- **Mac/Linux:** `/Users/yourname/sendify-challange-master/src/mcp_server.py`
+- **Windows:** `C:\\Users\\yourname\\sendify-challange-master\\src\\mcp_server.py`
 
 Make sure that the foldername `sendify-challange-master` is correct.
 

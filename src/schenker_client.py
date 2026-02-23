@@ -3,9 +3,6 @@ import time
 import json
 import logging
 
-# The URL to DBSchenkers shipment tracking
-URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
-
 logging.basicConfig(level=logging.INFO, force=True)
 log = logging.getLogger(__name__)
 
@@ -49,7 +46,7 @@ class SchenkerClient:
         It has a timeout of 10 seconds by default. If an error occurs, this function will return a dictionary in the form of
         {"error": "*the error*"}. This function handles exceptions for when the ID is not found and time outs.
 
-        :param str url: The URL for the DBSchenker public webbsite
+        :param str url: The URL for the DBSchenker public website
         :param str ref_id: The 10 digit parcel ID
         :param int time_out: Number of miliseconds to wait for the webbsite to load the page with shipment information
         :return: Returns the JSON in a python dictionary object response from the DBschenker API.
@@ -77,7 +74,6 @@ class SchenkerClient:
                     ("tracking-public/shipments?query" in r.url and r.status == 400) or 
                     ("tracking-public/shipments/land" in r.url and r.status == 200)
                     , timeout=time_out) as response_info:
-
                     page.fill("input#mat-input-0", ref_id)
                     page.keyboard.press("Enter")
 
@@ -93,7 +89,7 @@ class SchenkerClient:
             except Exception as e:
                 log.warning(f"Attempt {attempt+1} of {retries}:Failed to fetch Json: Shipment id {ref_id}. \n{e}")
                 if attempt == retries-1:
-                    log.warning(f"All atempts for shipment id {ref_id} failed, returning error dict from fetch_json.")
+                    log.warning(f"All attempts for shipment id {ref_id} failed, returning error dict from fetch_json.")
                     return {"error": f"{e}"}
             finally:
                 page.close()
@@ -116,21 +112,25 @@ class SchenkerClient:
             return source
         else:
             try:
+                # Get relevant data
                 data = {}
+                data["productCode"] = source["productCode"]
                 data["receiver"] = source["location"]["consignee"]
                 data["sender"] = source["location"]["shipper"]
                 data["packageDetails"] = source["goods"]
                 data["events"] = source["events"]
-                for event in data["events"]:
-                    del event["shellIconName"]
+                data["events"] = [
+                    {k: event[k] for k in event if k != "shellIconName"}
+                    for event in source["events"]
+                    ] #Remove unnecessary frontend info
                 return data
             
             except KeyError as e:
                 return {"error": f"DBSchenker has likely changed their JSON response, code needs changing. Missing key: {e}"}
     
-    def close(self):
-        self.browser.close()
-        self.p.stop()
+
+
+
 
 
 ##### TEST FOR DEBUG #####
@@ -146,41 +146,43 @@ This is a short debug program for fetching shipment tracking data from DBSchenke
 
     client = SchenkerClient() # start the client
 
-    try:
-        match choice:
-            case "1":
-                REF_ID = "1806256390"
-                jsonnn = client.fetch_json(URL, REF_ID)
-                parsed = client.parse_json(jsonnn)
-                print(json.dumps(parsed, sort_keys=True, indent=4))
+    # The URL to DBSchenkers shipment tracking
+    URL = "https://www.dbschenker.com/app/tracking-public/?uiMode=details-se"
 
-            case "2":
-                # Test all the id's and stress test the time_out of the functions.
-                id_list = ["1806203236",
-                            "1806290829",
-                            "1806273700",
-                            "1806272330",
-                            "1806271886",
-                            "1806270433",
-                            "1806268072",
-                            "1806267579",
-                            "1806264568",
-                            "1806258974",
-                            "1806256390"]
-                for id in id_list:
-                    raw = client.fetch_json(URL, id, 1_500)
-                    if "error" in raw:
-                        print(client.parse_json(raw))
+    
+    match choice:
+        case "1":
+            REF_ID = "1806256390"
+            jsonnn = client.fetch_json(URL, REF_ID)
+            parsed = client.parse_json(jsonnn)
+            print(json.dumps(parsed, sort_keys=True, indent=4))
 
-            case "3":
-                ref_id = input("Type the id: ")
-                jsonnn = client.fetch_json(URL, ref_id)
-                parsed = client.parse_json(jsonnn)
-                print(json.dumps(parsed, sort_keys=True, indent=4))
+        case "2":
+            # Test all the id's and stress test the time_out of the functions.
+            id_list = ["1806203236",
+                        "1806290829",
+                        "1806273700",
+                        "1806272330",
+                        "1806271886",
+                        "1806270433",
+                        "1806268072",
+                        "1806267579",
+                        "1806264568",
+                        "1806258974",
+                        "1806256390"]
+            for id in id_list:
+                raw = client.fetch_json(URL, id, 1_500)
+                if "error" in raw:
+                    print(client.parse_json(raw))
 
-            case default:
-                print("No valid input, shutting down...")
-    finally:
-        client.close() 
+        case "3":
+            ref_id = input("Type the id: ")
+            jsonnn = client.fetch_json(URL, ref_id)
+            parsed = client.parse_json(jsonnn)
+            print(json.dumps(parsed, sort_keys=True, indent=4))
+
+        case _:
+            print("No valid input, shutting down...")
+
             
 
